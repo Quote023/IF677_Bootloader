@@ -1,6 +1,6 @@
-org 8000h
-
-jmp setup_game
+;org 07C00h		
+org 8000h		
+jmp setup_game 
 
 ;; Constante
 Video 		equ 0B800h	
@@ -19,7 +19,7 @@ ComidaY:	 dw 12
 direction:	 db 4
 
 %macro draw 3
-  mov ax, [%1]
+	mov ax, [%1]
     mov bx, [%2]
     mov cx, 80
     mul cx
@@ -32,44 +32,65 @@ direction:	 db 4
 %macro colisao 4
 	mov ax, [%1]
 	cmp ax, [%3]
-	jz
+	jz game
 
 	mov ax, [%2]
 	cmp ax, [%4]
-	jz
+	jz game
+%endmacro
+
+%macro mudar_movimento 2
+	mov bl, %1
+	mov [%2], bl
+%endmacro
+
+%macro mover 1
+	mov al, [%1]
+	cmp al, UP
+	dec word [PlayerY]
+	cmp al, DOWN
+	inc word [PlayerY]
+	cmp al, LEFT
+	dec word [PlayerX]
+	cmp al, RIGHT
+	inc word [PlayerX]
+
+	jmp player_input
 %endmacro
 
 ;; Logica
 setup_game:
-
 	mov ax, 0003h
 	int 10h
 
 	mov ax, Video
 	mov es, ax
-	
-	;; Posicao Cobra
-	mov ax, [PlayerX]
-	mov ax, [PlayerY]
 
 ;; Game loop
 game:
-	.drawscreen:
-	mov ax, 1020h
+	drawscreen:
+	mov ax, 500h
 	xor di, di
 	mov cx, Largura*Altura
+	rep stosw
 
-	.drawsnake:
-	mov ax, [PlayerX]
-    mov bx, [PlayerY]
-    mov cx, 80
-    mul cx
-    add ax, bx
-    mov di, ax
-    mov dl, 7
-    mov [es:di], dl
+	drawsnake:
+	;mov bl, 1
+	;mov ch, 0
+	;mov cl, [PlayerX]
+	;mov ch, 0
+	;mov dl, [PlayerY]
 
-    .drawapple:
+	;mov ax, [PlayerX]
+    ;mov bx, [PlayerY]
+    ;mov cx, 80
+    ;mul cx
+    ;add ax, bx
+    ;mov di, ax
+    ;mov dl, 7
+    ;mov [es:di], dl
+
+    drawapple:
     mov ax, [ComidaX]
     mov bx, [ComidaY]
     mov cx, 80
@@ -79,7 +100,7 @@ game:
     mov dl, 7
     mov [es:di], dl
 
-	.mov_automatico:
+	mov_automatico:
 	mov al, [direction]
 	cmp al, UP
 	je move_up
@@ -90,21 +111,25 @@ game:
 	cmp al, RIGHT
 	je move_right
 
+	jmp player_input
+
 	move_up:
-		dec word [PlayerY]		; Move up 1 row on the screen
+		dec word [PlayerY]		
+		jmp player_input
 
 	move_down:
-		inc word [PlayerY]		; Move down 1 row on the screen
+		inc word [PlayerY]		
+		jmp player_input
 
 	move_left:
-		dec word [PlayerX]		; Move left 1 column on the screen
+		dec word [PlayerX]		
+		jmp player_input
 
 	move_right:
-		inc word [PlayerX]		; Move right 1 column on the screen
+		inc word [PlayerX]		
+		jmp player_input
 
-	player_input:
-		mov bl, [direction]		
-		
+	player_input:		
 		mov ah, 1
 		int 16h					
         jz check_colisao
@@ -120,37 +145,32 @@ game:
 		je a_pressed
 		cmp al, 'd'
 		je d_pressed
-        cmp al, 'r'
-        je r_pressed
-
-		jmp check_colisao
+        ;cmp al, 'r'
+        ;je r_pressed
 
 		w_pressed:
-            
-			mov bl, UP
+			mov ax, UP
+			mov [direction], ax
 			jmp check_colisao
 
 		s_pressed:
-            
-			mov bl, DOWN
+			mov ax, DOWN
+			mov [direction], ax
 			jmp check_colisao
 
 		a_pressed:
-            
-			mov bl, LEFT
+			mov ax, LEFT
+			mov [direction], ax
 			jmp check_colisao
 
 		d_pressed:
-            
-			mov bl, RIGHT
+			mov ax, RIGHT
+			mov [direction], ax
 			jmp check_colisao
-
-		r_pressed:
-            
-			int 19h
-
-        check_colisao:
 		
+		;r_pressed:
+
+    check_colisao:		
 		mov ax, [PlayerX]
 		cmp ax, [ComidaX]
 		jz game
@@ -159,13 +179,13 @@ game:
 		cmp ax, [ComidaY]
         jz game
 
-        next_apple:
+    next_apple:
 		xor ah, ah
-		int 1Ah			; Timer ticks since midnight in CX:DX
-		mov ax, dx		; Lower half of timer ticks
-		xor dx, dx		; Clear out upper half of dividend
+		int 1Ah			
+		mov ax, dx		
+		xor dx, dx		
 		mov cx, 80
-		div cx			; (DX/AX) / CX; AX = quotient, DX = remainder (0-79) 
+		div cx			
 		mov word [ComidaX], dx
 			
 		xor ah, ah
@@ -175,15 +195,14 @@ game:
 		mov cx, 25
 		div cx			 
 		mov word [ComidaY], dx
-    jmp game
 
-	
+	jmp game
 
-resetar:
-	xor ah, ah
-	int 16h
-    int 19h
+	resetar:
 
+		xor ah, ah
+		int 16h
+		int 19h
 
-
-  
+times 510 - ($-$$) db 0
+dw 0AA55h

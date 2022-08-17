@@ -62,7 +62,7 @@ start:
 		int 13h			;interrupcao de disco
 	jc Load_Kernel	;se der erro CF é setado, daí voltaria para o Load_Kernel	
 
-jmp 0x8c00
+jmp 8000h
 
 
 cursor_blink:
@@ -212,8 +212,8 @@ print_string:
 
 delay: ;0.01 segundos
 	mov ah, 86h
-  mov cx, DELAY_H(5000) ;10.000 microssegundos High Byte
-	mov dx, DELAY_L(5000) ;10.000 microssegundos Low Byte
+  mov cx, DELAY_H(100) ;10.000 microssegundos High Byte
+	mov dx, DELAY_L(100) ;10.000 microssegundos Low Byte
 	int 15h 
 ret
 
