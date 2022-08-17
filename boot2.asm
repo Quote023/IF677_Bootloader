@@ -7,10 +7,12 @@ jmp 0x0000:start
 %define LOADING_LMT_HR 288 ; limite direito da barra de loading
 %define LOADING_LMT_VT 150 ; limite superior da barra de loading
 %define LOADING_LMT_VB 165 ; limite inferior da barra de loading
+%define COLOR 0x0b
 
-string1 db 'Loading structures for the kernel...',13,10,0
-string3 db 'Loading kernel in memory...',13,10,0
-string4 db 'Running kernel...',13,10,0
+
+string1 db 'Carregando Estruturas do Kernel...',13,10,0
+string3 db 'Carregando Sistema na Memoria...',13,10,0
+string4 db 'Inicializando...',13,10,0
 line dw 0
 max dw 0
 
@@ -88,7 +90,8 @@ cursor_on:
 	add ax,0x000b
 	add ax,word [di]
 	mov word[si],ax
-	mov ax,0x0c02 ;ah=0x0c (pixel na cordenada dx,cx) e al é a cor 0x02(verde)
+	mov ah,0x0c ;ah=0x0c (pixel na cordenada dx,cx)
+	mov al,COLOR ;al é a cor  
 	mov bh,0x00
 	xor cx,cx
 	loop_cursor_on:
@@ -111,7 +114,7 @@ cursor_off:
 	add ax,0x000b
 	add ax,word [di]
 	mov word[si],ax
-	mov ax,0x0c00 ;ah=0x0c (pixel na cordenada dx,cx) e al é a cor 0x02(verde)
+	mov ax,0x0c00 ;ah=0x0c (pixel na cordenada dx,cx) e al é a cor 0x00(pretos)
 	mov bh,0x00
 	xor cx,cx
 	loop_cursor_off:
@@ -167,7 +170,8 @@ loading_unit_off:
 
 
 loading_limit:
-	mov ax,0x0c0f ; 0c = desenhar pixel; 0f = verde
+  mov ah,0x0c ;ah=0x0c (pixel na cordenada dx,cx)
+	mov al,COLOR ;al é a cor  
 	mov bh,0x00   ; pagina 0
 	mov dx,LOADING_LMT_VT
 	loading_limit_vloop:
@@ -181,7 +185,8 @@ loading_limit:
 	ret
 
 loading_unit:
-	mov ax,0x0c02
+  mov ah,0x0c ;ah=0x0c (pixel na cordenada dx,cx)
+	mov al,COLOR ;al é a cor  
 	mov bh,0x00
 	mov dx,LOADING_LMT_VT
 	loop_loading_unit:
@@ -191,10 +196,11 @@ loading_unit:
 		jne loop_loading_unit
 	ret 
 print_string:
-	mov bl,02h
+	mov bl,COLOR
 	loop_print_string:
 		mov cx,1
 		call delay
+    call delay
 		lodsb
 		cmp al,0
 		je end_print_string
@@ -206,8 +212,8 @@ print_string:
 
 delay: ;0.01 segundos
 	mov ah, 86h
-  mov cx, DELAY_H(100) ;10.000 microssegundos High Byte
-	mov dx, DELAY_L(100) ;10.000 microssegundos Low Byte
+  mov cx, DELAY_H(5000) ;10.000 microssegundos High Byte
+	mov dx, DELAY_L(5000) ;10.000 microssegundos Low Byte
 	int 15h 
 ret
 
