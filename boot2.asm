@@ -1,220 +1,172 @@
-org 0x500 
+org 0x500
 jmp 0x0000:start
+ 
+;como o endereço dado para o kernel é 0x7e00, devemos
+;utilizar o método de shift left (hexadecimal)
+;e somar o offset no adress base, para rodarmos o kernel.
 
-%define DELAY_L(a) (a	& 0xff00)
-%define DELAY_H(b) (b >> 8 & 0xff00)
-%define LOADING_LMT_HL 32 ; limite esquerdo da barra de loading
-%define LOADING_LMT_HR 288 ; limite direito da barra de loading
-%define LOADING_LMT_VT 150 ; limite superior da barra de loading
-%define LOADING_LMT_VB 165 ; limite inferior da barra de loading
-%define COLOR 0x0b
+runningKernel db 'Rodando o Kernel', 0
+    
+p0 db '      .--.    /',13,10,0
+p1 db '     |o_o | /',13,10,0   
+p2 db '     |:_/ |   ',13,10,0  
+p3 db '    //   \ \  ',13,10,0   
+p4 db '   (|     | ) ',13,10,0  
+p5 db '  /`\_   _/`\ ',13,10,0  
+p6 db '  \___)=(___/ ',13,10,0  
 
-
-string1 db 'Carregando Estruturas do Kernel...',13,10,0
-string3 db 'Carregando Sistema na Memoria...',13,10,0
-string4 db 'Inicializando...',13,10,0
-line dw 0
-max dw 0
-
-start:
-	xor ax,ax ; limpar ax
-	mov ds,ax
-
-	Reset_Disk_Drive:
-		mov ah,0		;INT 13h AH=00h: Reset Disk Drive
-		mov dl,0		;floppydisk 
-		int 13h			;interrupção de acesso ao disco
-  jc Reset_Disk_Drive		;se der erro CF é setado, daí voltaria para o Reset_Disk_Drive
-
-	mov ax,0x0013 ; ah = 0 (mudar o modo de video) ; al = 13h -> 256 cores 320x200px
+set_cursor:     ;dh = linha/eixo y ~ dl = coluna/eixo x
+	mov ah, 02h ;set cursor position 
+	mov bh, 00h ;page number
 	int 10h
 
-	call loading_limit
-	mov al,0x00
-	call cursor_blink
-	mov si,string1
-	call print_string
-	call loading
-	call loading_off
-	call loading_limit
-	mov al,0x02
-	mov si,string3
-	call print_string
-	call loading
-	call loading_off
-	call loading_limit
-	mov al,0x03
-	mov si,string4
-	call print_string
-	call loading
-	call loading_off
-
-	mov ax,0x08c0;mov ax,0x07e0
-	mov es,ax ; 
-	mov bx,0x0000 ; 07e0:0000 -> 0x07e00
-	Load_Kernel:
-		mov ah, 0x02		;;INT 13h AH=02h: Read Sectors From Drive
-		mov al, 30	;numero de setores ocupados pelo kernel
-		mov ch,0		;trilha 0
-		mov cl,3	;vai comecar a ler do setor 3
-		mov dh,0		;cabeca 0
-		mov dl,0		;drive 0
-		int 13h			;interrupcao de disco
-	jc Load_Kernel	;se der erro CF é setado, daí voltaria para o Load_Kernel	
-
-jmp 8000h
-
-
-cursor_blink:
-	mov ah,0x00
-	mov cl,0x10
-	mul cl
-	inc ax 
-	mov di,line
-	mov word [di],ax
-	mov cx,0x02
-	call cursor_on
-	call delay
-	call cursor_off
-	call delay
-	call cursor_on
-	call delay
-	call cursor_off
-	ret 
-
-
-cursor_on:
-	mov di,line
-	mov si,max
-	xor ax,ax
-	add ax,0x000b
-	add ax,word [di]
-	mov word[si],ax
-	mov ah,0x0c ;ah=0x0c (pixel na cordenada dx,cx)
-	mov al,COLOR ;al é a cor  
-	mov bh,0x00
-	xor cx,cx
-	loop_cursor_on:
-		mov dx,word [di]
-		int 10h
-		loop2_cursor_on:
-			inc dx
-			cmp dx,word[si]	
-			int 10h
-			jne loop2_cursor_on
-		inc cx
-		cmp cx,0x0008
-		jne loop_cursor_on
 	ret
 
-cursor_off:
-	mov di,line
-	mov si,max
-	xor ax,ax
-	add ax,0x000b
-	add ax,word [di]
-	mov word[si],ax
-	mov ax,0x0c00 ;ah=0x0c (pixel na cordenada dx,cx) e al é a cor 0x00(pretos)
-	mov bh,0x00
-	xor cx,cx
-	loop_cursor_off:
-		mov dx,word [di]
-		int 10h
-		loop2_cursor_off:
-			inc dx
-			cmp dx,word[si]	
-			int 10h
-			jne loop2_cursor_off
-		inc cx
-		cmp cx,0x0008
-		jne loop_cursor_off
-	ret
+delay:         ;antes de chamar a função tem que colocar em dx o tempo do delay
+	dec dx
+	mov cx, 0
+		.time:
+			inc cx
+			cmp cx, 10000
+			jne .time 
 
-loading:
-	mov cx,LOADING_LMT_HL
-	loop_loading:
-		call loading_unit
-		inc cx
-		push cx
-		xor cx,cx
-		call delay
-		pop cx
-		cmp cx,LOADING_LMT_HR
-		jne loop_loading
-		mov ah, 86h
-		mov cx, 10	
-		xor dx, dx
-		mov dx, 40	
-		int 15h
-	ret
-
-loading_off:
-	mov cx,LOADING_LMT_HL
-	loop_loading_off:
-		call loading_unit_off
-		inc cx
-		cmp cx,LOADING_LMT_HR
-		jne loop_loading_off
-	ret
-
-loading_unit_off:
-	mov ax,0x0c00
-	mov bh,0x00
-	mov dx,LOADING_LMT_VT
-	loop_loading_unit_off:
-		int 10h
-		inc dx
-		cmp dx,LOADING_LMT_VB
-		jne loop_loading_unit_off
-	ret 
-
-
-loading_limit:
-  mov ah,0x0c ;ah=0x0c (pixel na cordenada dx,cx)
-	mov al,COLOR ;al é a cor  
-	mov bh,0x00   ; pagina 0
-	mov dx,LOADING_LMT_VT
-	loading_limit_vloop:
-		mov cx,LOADING_LMT_HL 
-		int 10h
-    mov cx,LOADING_LMT_HR 
-		int 10h
-		inc dx
-		cmp dx,LOADING_LMT_VB ; Y = 110
-		jne loading_limit_vloop
-	ret
-
-loading_unit:
-  mov ah,0x0c ;ah=0x0c (pixel na cordenada dx,cx)
-	mov al,COLOR ;al é a cor  
-	mov bh,0x00
-	mov dx,LOADING_LMT_VT
-	loop_loading_unit:
-		int 10h	
-		inc dx
-		cmp dx,LOADING_LMT_VB
-		jne loop_loading_unit
-	ret 
-print_string:
-	mov bl,COLOR
-	loop_print_string:
-		mov cx,1
-		call delay
-    call delay
-		lodsb
-		cmp al,0
-		je end_print_string
-		mov ah,0eh
-		int 10h
-		jmp loop_print_string
-	end_print_string:
-  ret
-
-delay: ;0.01 segundos
-	mov ah, 86h
-  mov cx, DELAY_H(100) ;10.000 microssegundos High Byte
-	mov dx, DELAY_L(100) ;10.000 microssegundos Low Byte
-	int 15h 
+	cmp dx, 0
+	jne delay
 ret
 
-jmp $
+print_string_delay:  ;string tem que estar em SI
+	lodsb   
+	cmp al,0
+	je end
+
+	mov ah, 0eh  ;video teletype output
+	int 10h
+
+	mov dx, 4000
+    call delay
+
+	jmp print_string_delay
+
+    end:
+	; call endl
+ret
+
+
+printString:
+    .loop:
+        lodsb ; carrega caracter em al
+        cmp al, 0
+
+        je .endloop
+        call putchar
+
+        jmp .loop
+    .endloop:
+ret
+
+putchar:
+    mov ah, 0x0e ;ah = 14 é o modo de vídeo de 10h para imprimir na tela
+    int 10h
+ret
+
+
+print_pontos:
+    mov bh, 3
+    .printT:
+        mov dx, 50000
+        call delay
+        mov ah, 0eh ;modo de vídeo
+        mov al, '.' ;caractere p/ imprimir
+        int 10h
+
+        dec bh
+        cmp bh, 0
+        jne .printT
+
+    ;call endl
+
+ret
+
+start:
+    xor ax, ax
+    mov ds, ax
+    mov es, ax
+
+    mov ah, 0   ;set video mode
+	mov al, 12h ;vga
+	int 10h
+
+    mov bl, 0ah ;cor verde
+
+    mov dh, 0   ;posição no eixo Y 
+	mov dl, 15  ;posição no eixo X
+	call set_cursor
+
+    mov al, '<'
+    call putchar
+
+    mov dh, 0
+	mov dl, 40
+	call set_cursor
+
+    mov al, '>'
+    call putchar
+
+    mov dh, 1
+	mov dl, 0
+	call set_cursor
+
+    ;printando o pinguim
+    mov si, p0
+    call printString
+    mov si, p1
+    call printString
+    mov si, p2
+    call printString
+    mov si, p3         
+    call printString       
+    mov si, p4        
+    call printString
+    mov si, p5
+    call printString
+    mov si, p6
+    call printString 
+
+    mov dh, 0
+	mov dl, 18
+	call set_cursor
+
+    mov si, runningKernel ;printa mensagem "rodando kernel"
+    call print_string_delay
+    call print_pontos ;printa os pontos com delay 
+
+    reset:
+        mov ah, 00h ;reseta o controlador de disco
+        mov dl, 0   ;floppy disk
+        int 13h
+
+        jc reset    ;se o acesso falhar, tenta novamente
+
+        jmp load_kernel
+
+    load_kernel:
+        ;Setando a posição do disco onde kernel.asm foi armazenado(ES:BX = [0x7E00:0x0])
+        mov ax,0x7E0	;0x7E0<<1 + 0 = 0x7E00
+        mov es,ax
+        xor bx,bx		;Zerando o offset
+
+        mov ah, 0x02 ;le o setor do disco
+        mov al, 20  ;porção de setores ocupados pelo kernel.asm
+        mov ch, 0   ;track 0
+        mov cl, 3   ;setor 3
+        mov dh, 0   ;head 0
+        mov dl, 0   ;drive 0
+        int 13h
+
+        jc load_kernel ;se o acesso falhar, tenta novamente
+
+        jmp 0x7e00  ;pula para o setor de endereco 0x7e00, que é o kernel
+
+  
+    times 510-($-$$) db 0 ;512 bytes
+    dw 0xaa55	
