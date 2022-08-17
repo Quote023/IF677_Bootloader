@@ -1,0 +1,3 @@
+dearpygui==1.6.2
+pygdbmi==0.10.0.1
+PyAutoGUI==0.9.52

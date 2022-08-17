@@ -3,7 +3,7 @@ block_size = 512
 disk_size = 100
 
 nasm_flags = -f bin
-qemu_flags = -fda
+qemu_flags = -S -s -fda 
 
 #primeiro estágio
 boot1_file = boot1

@@ -11,8 +11,15 @@ jmp 0x0000:start
 
 
 string1 db 'Carregando Estruturas do Kernel...',13,10,0
-string3 db 'Carregando Sistema na Memoria...',13,10,0
-string4 db 'Inicializando...',13,10,0
+string2 db ' _.........._ ',13,10,0
+string3 db '| |Cin     | |',13,10,0
+string4 db '| |        | |',13,10,0
+string5 db '| |        | |',13,10,0
+string6 db '| |________| |',13,10,0
+string7 db '|   ______   |',13,10,0
+string8 db '|  |    | |  |',13,10,0
+string9 db '|__|____|_|__|',13,10,0
+
 line dw 0
 max dw 0
 
@@ -32,20 +39,28 @@ start:
 	call loading_limit
 	mov al,0x00
 	call cursor_blink
-	mov si,string1
-	call print_string
-	call loading
-	call loading_off
-	call loading_limit
-	mov al,0x02
-	mov si,string3
-	call print_string
-	call loading
-	call loading_off
-	call loading_limit
-	mov al,0x03
-	mov si,string4
-	call print_string
+
+  mov bl, COLOR
+  mov si, string1
+  call printString	
+  ; mov si,string2
+	; call printString
+  ; mov si,string3
+	; call printString
+  ; mov si,string4
+	; call printString
+  ; mov si,string5
+	; call printString
+  ; mov si,string6
+	; call printString
+  ; mov si,string7
+	; call printString
+  ; mov si,string8
+	; call printString
+  ; mov si,string9
+	; call printString
+
+  call loading_limit
 	call loading
 	call loading_off
 
@@ -184,6 +199,35 @@ loading_limit:
 		jne loading_limit_vloop
 	ret
 
+printString:
+    xor ax, ax
+    .loop:
+        lodsb ; carrega caracter em al
+        cmp al, 0
+        je .endloop
+        call putchar
+        jmp .loop
+    .endloop:
+ret
+
+putchar:
+    mov ah, 0x0e
+    int 10h
+ret
+
+set_cursor:     ;dh = linha/eixo y ~ dl = coluna/eixo x
+	mov ah, 02h ;set cursor position 
+	mov bh, 00h ;page number
+	int 10h
+	ret
+
+delay: ;0.01 segundos
+	mov ah, 86h
+  mov cx, DELAY_H(5000) ;10.000 microssegundos High Byte
+	mov dx, DELAY_L(5000) ;10.000 microssegundos Low Byte
+	int 15h 
+ret
+
 loading_unit:
   mov ah,0x0c ;ah=0x0c (pixel na cordenada dx,cx)
 	mov al,COLOR ;al é a cor  
@@ -195,26 +239,4 @@ loading_unit:
 		cmp dx,LOADING_LMT_VB
 		jne loop_loading_unit
 	ret 
-print_string:
-	mov bl,COLOR
-	loop_print_string:
-		mov cx,1
-		call delay
-    call delay
-		lodsb
-		cmp al,0
-		je end_print_string
-		mov ah,0eh
-		int 10h
-		jmp loop_print_string
-	end_print_string:
-  ret
-
-delay: ;0.01 segundos
-	mov ah, 86h
-  mov cx, DELAY_H(5000) ;10.000 microssegundos High Byte
-	mov dx, DELAY_L(5000) ;10.000 microssegundos Low Byte
-	int 15h 
-ret
-
 jmp $

@@ -108,6 +108,7 @@
   pop ax
 %endmacro
 
+
 %macro delay 1
   push si ; salva o estado de si
   push ax ; salva o estado de ax 
@@ -121,6 +122,10 @@
   pop dx  ; retorna estado de dx
   pop ax  ; retorna estado de ax
   pop si  ; retorna o estado de si
+%endmacro
+
+%macro delay 0
+  delay 5000
 %endmacro
 
 _initVideo:
