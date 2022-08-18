@@ -1,39 +1,47 @@
 org 0x500
 jmp 0x0000:start
- 
-;como o endereço dado para o kernel é 0x7e00, devemos
-;utilizar o método de shift left (hexadecimal)
-;e somar o offset no adress base, para rodarmos o kernel.
 
-runningKernel db 'Rodando o Kernel', 0
-    
-p0 db '      .--.    /',13,10,0
-p1 db '     |o_o | /',13,10,0   
-p2 db '     |:_/ |   ',13,10,0  
-p3 db '    //   \ \  ',13,10,0   
-p4 db '   (|     | ) ',13,10,0  
-p5 db '  /`\_   _/`\ ',13,10,0  
-p6 db '  \___)=(___/ ',13,10,0  
+msgInicial db 'Iniciando o sistema', 0
 
-set_cursor:     ;dh = linha/eixo y ~ dl = coluna/eixo x
+
+p0 db ' _.........._ ',13,10,0
+p1 db '| |Cin     | |',13,10,0
+p2 db '| |        | |',13,10,0
+p3 db '| |________| |',13,10,0
+p4 db '|   ______   |',13,10,0
+p5 db '|  |    | |  |',13,10,0
+p6 db '|__|____|_|__|',13,10,0
+
+;desc:
+; define a posição do cursor na tela
+;input:
+; DH = linha/eixo y
+; DL = coluna/eixo x
+set_cursor: 
 	mov ah, 02h ;set cursor position 
 	mov bh, 00h ;page number
 	int 10h
-
 	ret
 
-delay:         ;antes de chamar a função tem que colocar em dx o tempo do delay
+;desc:
+; pausa a aplicação por um tempo
+;input:
+; DX = quantidade de delay
+delay:
 	dec dx
 	mov cx, 0
 		.time:
 			inc cx
 			cmp cx, 10000
 			jne .time 
-
 	cmp dx, 0
 	jne delay
 ret
 
+;desc:
+; imprime texto na tela com delay entre letras
+;input:
+; SI = string a ser impressa
 print_string_delay:  ;string tem que estar em SI
 	lodsb   
 	cmp al,0
@@ -52,6 +60,10 @@ print_string_delay:  ;string tem que estar em SI
 ret
 
 
+;desc:
+; imprime string na tela
+;input:
+; SI = string a ser impressa
 printString:
     .loop:
         lodsb ; carrega caracter em al
@@ -64,6 +76,10 @@ printString:
     .endloop:
 ret
 
+;desc:
+; imprime caracter na tela
+;input:
+; AL = caracter a ser impresso
 putchar:
     mov ah, 0x0e ;ah = 14 é o modo de vídeo de 10h para imprimir na tela
     int 10h
@@ -96,27 +112,27 @@ start:
 	mov al, 12h ;vga
 	int 10h
 
-    mov bl, 0ah ;cor verde
+  mov bl, 3 ;cor verde
 
-    mov dh, 0   ;posição no eixo Y 
+  mov dh, 0   ;posição no eixo Y 
 	mov dl, 15  ;posição no eixo X
 	call set_cursor
 
-    mov al, '<'
-    call putchar
+  mov al, '<'
+  call putchar
 
-    mov dh, 0
+  mov dh, 0
 	mov dl, 40
 	call set_cursor
 
-    mov al, '>'
-    call putchar
+  mov al, '>'
+  call putchar
 
-    mov dh, 1
+  mov dh, 1
 	mov dl, 0
 	call set_cursor
 
-    ;printando o pinguim
+    ;printando o icone
     mov si, p0
     call printString
     mov si, p1
@@ -136,7 +152,7 @@ start:
 	mov dl, 18
 	call set_cursor
 
-    mov si, runningKernel ;printa mensagem "rodando kernel"
+    mov si, msgInicial
     call print_string_delay
     call print_pontos ;printa os pontos com delay 
 
