@@ -60,6 +60,7 @@ entry:
         xor byte var(randomness+1), al
         loop .rand_iter
 
+
 player_y: dw player_base_y ; posição da altura do player
 
 main:
@@ -151,9 +152,9 @@ main:
     mov bx, ax ; calcula a altura atual do player
     mov dl, fg_color
     cmp byte [es:bx+(9*320)+35], dl ; caso na posição da cabeça haja um pixel pintado = colisão
-    je reset
+    je menu
     cmp byte [es:bx+(12*320)+36], dl ; caso na posição da perna haja um pixel pintado = colisão
-    je reset
+    je menu
 
     ; aumenta o contador de frames
     inc dword var(clock_ms)
@@ -323,5 +324,67 @@ player_sprite_walk:
     db 00100010b,01000100b
     db 00011100b,00111000b
 
+    ; para o menu
+    command: times 20 db 0
+    menuPresentation  db 10, "====================== YOU DIED :( =======================", 10, 13, 10, 13,"1 - Restart Game", 10, 13,"2 - Credits", 10, 13, 10, 13, 0
+    creditsPresentation  db 10, "====================== CREDITS =======================",10,13,10,13,"Projeto desenvolvido por:",10,13,10,13,"    acs11- Alexandre Cândido Souza",10,13,"    jss4 - Juliana Serafim da Silva",10,13,"    jcasf -Julio Cesar Araujo Sobral Filho", 10,13,10,13,0
+    ; Main Program commands
+    startGameCommand EQU 49
+    creditsCommand EQU 50
 
-  
+
+putChar:
+	mov ah, 0x0e ; Escreve um caractere na tela na posição atual do cursor e atualiza a posição do mesmo
+    mov bl, 15  ; Definer cor para o "print"
+	int 10h ; Interrupção de vídeo
+	ret
+
+; Função printa enquanto al for != 0
+print:
+    lodsb
+    cmp al, 0
+    je .done
+
+    call putChar
+
+    jmp print
+    .done:
+        ret
+
+clearScreen:
+    mov ah, 0
+    mov al, 10h
+    int 10h
+    ret
+
+credits:
+    call clearScreen
+
+    mov si, creditsPresentation
+    call print
+
+    jmp menu
+
+menu:
+    call clearScreen
+
+    mov si, menuPresentation
+    call print
+
+    mov di, command
+    call .readMenuOption
+
+    jmp reset
+
+    .readMenuOption
+        .while:
+            mov ah, 00h
+            int 16h ; Interrupção responsável por capturar pressionamento de tecla do teclado
+
+            cmp al, startGameCommand
+            je reset
+
+            cmp al, creditsCommand
+            je credits
+
+            jmp .while
