@@ -2,15 +2,13 @@ org 0x7e00
 use16
 
 %define var_base 8000h ; in RAM right after the boot sector
-%define var(X)   [bp+(X)]
 %define DELAY_L(a) (a	& 0xff00)
 %define DELAY_H(b) (b >> 8 & 0xff00)
 
 ; ponteiros pra variáveis que não precisam de um valor inicial
-%define clock_ms    0x0000 
-%define randomness  0x000A
-%define dino_vel    0x000C
-%define next_obst 0x000D
+clock_ms: dw  0
+dino_vel: dw   0
+next_obst: dw  0
 
 %define player_base_y 141
 %define ground_y 157
@@ -53,13 +51,6 @@ entry:
     ; inicializando valores
     mov bp, var_base ; base pointer -> usado pra encontrar os ponteiros com o macro var etc
     mov cx, 0xff ; roda 255 vezes
-    .rand_iter:
-        in al, 0x40 ; ler o valor atual de um timer de hardware para pseudo-aleatoriedade
-        xor byte var(randomness), al ; atualiza a variável aleatoria com esse contador
-        in al, 0x40
-        xor byte var(randomness+1), al
-        loop .rand_iter
-
 
 player_y: dw player_base_y ; posição da altura do player
 
@@ -73,7 +64,7 @@ main:
     mov dh, byte [player_y]
     call draw_sprite
 
-    test byte var(clock_ms), 3 ; move o chão para a esquerda quando o valor binário do clock começar com 11
+    test byte [clock_ms], 3 ; move o chão para a esquerda quando o valor binário do clock começar com 11
     jnz .ground_cont
     ; mover obstaculos para esquerda
     mov cx, 35
@@ -88,35 +79,24 @@ main:
     .ground_cont:
 
     ;; desenha obstaculo
-    mov eax, dword var(clock_ms)
-    cmp eax, dword var(next_obst) 
-    jl .obst_cont ; caso ainda não seja a hora de um novo obstaculo (clock_ms < next_obst) 
+    test byte [clock_ms], 255 ; move o chão para a esquerda quando o valor binário do clock começar com 11
+    jnz .obst_cont ; caso ainda não seja a hora de um novo obstaculo ([clock_ms] < [next_obst]) 
     mov si, obstacle_sprite
     mov dl, fg_color
     mov bx, 303
     mov dh, 141 ;desenha um obstaculo no canto direito da tela
     call draw_sprite
-
-    ;; define quando será o próximo obstaculo
-    ror word var(randomness), 2 ; rotaciona o valor aleatorio 2 vezes
-    xor ax, ax
-    mov al, byte var(randomness)
-    and al, 3
-    or al, 4
-    shl ax, 7
-    add eax, dword var(clock_ms)
-    mov dword var(next_obst), eax ; calcula e define quando o próximo obstaculo sera impresso (clock_ms + random)
     .obst_cont:
 
     ;; atualiza posição do player
-    test byte var(clock_ms), 15 ;ignora alguns frames
+    test byte [clock_ms], 15 ;ignora alguns frames
     jnz .noupd
     ;; atualiza posição
-    mov al, byte var(dino_vel)
+    mov al, byte [dino_vel]
     sub byte [player_y], al ; desce o player
     cmp byte [player_y], player_base_y
     jae .nodown ; não precisa descer se já tiver no chão
-    sub byte var(dino_vel), 1 ; reduz a velocidade de queda/pulo
+    sub byte [dino_vel], 1 ; reduz a velocidade de queda/pulo
     jmp .noupd
     .nodown:
     mov byte [player_y], player_base_y
@@ -133,8 +113,8 @@ main:
     jne .nostroke
 
     mov al, 3
-    mov byte var(dino_vel), 8 ; adiciona velocidade => no próximo frame o player irá pular
-    mov eax, dword var(clock_ms) ; guarda o frame atual do jogo
+    mov byte [dino_vel], 8 ; adiciona velocidade => no próximo frame o player irá pular
+    mov eax, dword [clock_ms] ; guarda o frame atual do jogo
     .nostroke:
 
     ; desenha o player na posição atual
@@ -157,7 +137,7 @@ main:
     je menu
 
     ; aumenta o contador de frames
-    inc dword var(clock_ms)
+    inc dword [clock_ms]
     
     ; interrupção pra esperar algum tempo entre frames
     pusha 
@@ -264,6 +244,7 @@ draw_sprite:
     popa ; restaura registradores
     ret
 
+
 ; Estrutura dos sprites:
 ; primeiro byte: (qtd de byes << 5) | ((altura - 2) << 0)
 
@@ -324,13 +305,16 @@ player_sprite_walk:
     db 00100010b,01000100b
     db 00011100b,00111000b
 
-    ; para o menu
+; para o menu
     command: times 20 db 0
     menuPresentation  db 10, "====================== YOU DIED :( =======================", 10, 13, 10, 13,"1 - Restart Game", 10, 13,"2 - Credits", 10, 13, 10, 13, 0
-    creditsPresentation  db 10, "====================== CREDITS =======================",10,13,10,13,"Projeto desenvolvido por:",10,13,10,13,"    acs11- Alexandre Cândido Souza",10,13,"    jss4 - Juliana Serafim da Silva",10,13,"    jcasf -Julio Cesar Araujo Sobral Filho", 10,13,10,13,0
+    creditsPresentation  db 10, "====================== CREDITS =======================",10,13,10,13,"Projeto desenvolvido por:",10,13,10,13,"    acs11- Alexandre Candido Souza",10,13,"    jss4 - Juliana Serafim da Silva",10,13,"    jcasf -Julio Cesar Araujo Sobral Filho", 10,13,10,13,"=======================================================" ,10,13,"* To return to the MENU, press the SPACE button *",10,13,"=======================================================",10,13,10,13,10,13,0
+    extrasMenuPresentation db "=======================================================" ,10,13,"* To return to the MENU, press the SPACE button *",10,13,"=======================================================",10,13,10,13,10,13,0
+
     ; Main Program commands
     startGameCommand EQU 49
     creditsCommand EQU 50
+    backToStartCommand EQU 32
 
 
 putChar:
@@ -363,7 +347,7 @@ credits:
     mov si, creditsPresentation
     call print
 
-    jmp menu
+    jmp backToStart
 
 menu:
     call clearScreen
@@ -388,3 +372,20 @@ menu:
             je credits
 
             jmp .while
+
+restart:
+    xor ax, ax
+    mov ds, ax
+    mov es, ax
+
+    call menu
+
+; Verificar se a barra de espaço foi pressionada e volta pro start, se não, fica tentando "escutar"
+backToStart:
+    .while:
+        mov ah, 00h
+        int 16h
+        cmp al, backToStartCommand
+        je restart
+
+        jmp .while
